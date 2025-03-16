@@ -4,8 +4,8 @@ import logging
 import argparse
 from logging.handlers import RotatingFileHandler
 import os
+import re
 from azure.iot.device import IoTHubDeviceClient, Message
-from azure.iot.device.exceptions import IoTHubError
 
 # The connection string you got from Azure IoT Hub (the primary connection string from your screenshot)
 CONNECTION_STRING = os.getenv("IOTHUB_DEVICE_CONNECTION_STRING")
@@ -55,10 +55,17 @@ def simulate_temperature():
     """Simulate temperature readings"""
     return round(random.uniform(20.0, 40.0), 2)
 
+def extract_device_id(connection_string):
+    match = re.search(r'DeviceId=([^;]+);', connection_string)
+    device_id = match.group(1) if match else "Not found"
+    return device_id
+
 def main():
     try:
         if not CONNECTION_STRING:
             raise ValueError("Enviroment variabel IOTHUB_DEVICE_CONNECTION_STRING is not set")
+
+        device_id = extract_device_id(CONNECTION_STRING)
 
         time_interval = handle_launch_params()
         app_logger = setup_logging("application", "application.log")
@@ -79,7 +86,8 @@ def main():
             # Create message object
             message = Message(str({
                 'temperature': temperature,
-                'timestamp': time.time()
+                'timestamp': time.time(),
+                "device_id": device_id
             }))
 
             try: # Send the message
